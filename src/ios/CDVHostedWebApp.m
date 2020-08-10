@@ -9,7 +9,7 @@ static NSString* const DEFAULT_CORDOVA_BASE_URL = @"";
 
 @interface CDVHostedWebApp ()
 
-@property UIWebView *offlineView;
+@property WKWebView *offlineView;
 @property NSString *offlinePage;
 @property NSString *manifestError;
 @property BOOL enableOfflineSupport;
@@ -249,7 +249,6 @@ static NSString* const defaultManifestFileName = @"manifest.json";
         }
     }
     
-    //return[(UIWebView*)self.webView stringByEvaluatingJavaScriptFromString:content] != nil;
     [(WKWebView*)self.webView evaluateJavaScript:content completionHandler:NULL];
     return TRUE; //HACK: Return result is returned asynchronously, so this really needs to be changed to have a completion callback instead as well 
 }
@@ -350,7 +349,7 @@ static NSString* const defaultManifestFileName = @"manifest.json";
 
     webViewBounds.origin = self.webView.bounds.origin;
 
-    self.offlineView = [[UIWebView alloc] initWithFrame:webViewBounds];
+    self.offlineView = [[WKWebView alloc] initWithFrame:webViewBounds];
     self.offlineView.autoresizingMask = (UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight);
     [self.offlineView setHidden:YES];
 
@@ -509,85 +508,6 @@ static NSString* const defaultManifestFileName = @"manifest.json";
     }
 }
 
-#ifndef __CORDOVA_4_0_0
-- (BOOL)shouldOverrideLoadWithRequest:(NSURLRequest*)request navigationType:(UIWebViewNavigationType)navigationType
-{
-    NSURL* url = [request URL];
-
-    if (![self shouldAllowNavigation:url])
-    {
-        if ([[UIApplication sharedApplication] canOpenURL:url])
-        {
-            [[UIApplication sharedApplication] openURL:url]; // opens the URL outside the webview
-            return YES;
-        }
-    }
-    
-    return NO;
-}
-
-- (BOOL)shouldAllowNavigation:(NSURL*)url
-{
-    NSMutableArray* scopeList = [[NSMutableArray alloc] initWithCapacity:0];
-    
-    // determine base rule based on the start_url and the scope
-    NSURL* baseURL = nil;
-    NSString* startURL = [self.manifest objectForKey:@"start_url"];
-    if (startURL != nil) {
-        baseURL = [NSURL URLWithString:startURL];
-        NSString* scope = [self.manifest objectForKey:@"scope"];
-        if (scope != nil) {
-            baseURL = [NSURL URLWithString:scope relativeToURL:baseURL];
-        }
-    }
-    
-    if (baseURL != nil) {
-        // If there are no wildcards in the pattern, add '*' at the end
-        if (![[baseURL absoluteString] containsString:@"*"]) {
-            baseURL = [NSURL URLWithString:@"*" relativeToURL:baseURL];
-        }
-        
-        
-        // add base rule to the scope list
-        [scopeList addObject:[baseURL absoluteString]];
-    }
-    
-    // add additional navigation rules from mjs_access_whitelist
-    // TODO: mjs_access_whitelist is deprecated. Should be removed in future versions
-    NSObject* setting = [self.manifest objectForKey:@"mjs_access_whitelist"];
-    if (setting != nil && [setting isKindOfClass:[NSArray class]])
-    {
-        NSArray* accessRules = (NSArray*)setting;
-        if (accessRules != nil)
-        {
-            for (NSDictionary* rule in accessRules)
-            {
-                NSString* accessUrl = [rule objectForKey:@"url"];
-                if (accessUrl != nil)
-                {
-                    [scopeList addObject:accessUrl];
-                }
-            }
-        }
-    }
-    
-    // add additional navigation rules from mjs_extended_scope
-    setting = [self.manifest objectForKey:@"mjs_extended_scope"];
-    if (setting != nil && [setting isKindOfClass:[NSArray class]])
-    {
-        NSArray* scopeRules = (NSArray*)setting;
-        if (scopeRules != nil)
-        {
-            for (NSString* rule in scopeRules)
-            {
-                [scopeList addObject:rule];
-            }
-        }
-    }
-    
-    return [[[CDVWhitelist alloc] initWithArray:scopeList] URLIsAllowed:url];
-}
-#endif
 
 // Updates the network connectivity status when the app is paused or resumes
 // NOTE: for onPause and onResume, calls into JavaScript must not call or trigger any blocking UI, like alerts
